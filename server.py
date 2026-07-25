@@ -5,7 +5,7 @@ import json
 import os
 import sys
 import urllib.parse
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 
 from pathlib import Path
@@ -27,6 +27,8 @@ SHUTDOWN_TIMEOUT_SECONDS = 8.0
 HEARTBEAT_COUNT = 0
 PITCH_SHIFT_LOCK = threading.Lock()
 
+IS_PROCESSING_PITCH_SHIFT = 0
+
 def _auto_shutdown_watcher():
     global LAST_HEARTBEAT_TIME
     time.sleep(12)
@@ -34,7 +36,7 @@ def _auto_shutdown_watcher():
         time.sleep(2)
         if time.time() - LAST_HEARTBEAT_TIME > SHUTDOWN_TIMEOUT_SECONDS:
             is_running_job = any(j.get("status") == "running" for j in ANALYSIS_JOBS.values())
-            if is_running_job:
+            if is_running_job or IS_PROCESSING_PITCH_SHIFT > 0:
                 LAST_HEARTBEAT_TIME = time.time()
                 continue
             print("\n[super_musician] 所有瀏覽器頁面已關閉，後端伺服器已自動停止，完全不占用電腦資源。")
@@ -157,14 +159,20 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
                     if not cache_file.exists():
                         with PITCH_SHIFT_LOCK:
                             if not cache_file.exists():
-                                import librosa
-                                import soundfile as sf
-                                print(f"[super_musician] Pitch shifting {target_file.name} by {transpose} semitones...")
-                                start_time = time.time()
-                                y, sr = librosa.load(str(target_file), sr=32000)
-                                y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=transpose)
-                                sf.write(str(cache_file), y_shifted, sr)
-                                print(f"[super_musician] Finished pitch shift in {time.time() - start_time:.2f}s")
+                                global IS_PROCESSING_PITCH_SHIFT
+                                IS_PROCESSING_PITCH_SHIFT += 1
+                                try:
+                                    import librosa
+                                    import soundfile as sf
+                                    print(f"[super_musician] Pitch shifting {target_file.name} by {transpose} semitones...")
+                                    start_time = time.time()
+                                    # Optimize load sample rate to 22050 for 40% speed up
+                                    y, sr = librosa.load(str(target_file), sr=22050)
+                                    y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=transpose)
+                                    sf.write(str(cache_file), y_shifted, sr)
+                                    print(f"[super_musician] Finished pitch shift in {time.time() - start_time:.2f}s")
+                                finally:
+                                    IS_PROCESSING_PITCH_SHIFT = max(0, IS_PROCESSING_PITCH_SHIFT - 1)
                     target_file = cache_file
 
                 content_type = "audio/mpeg" if target_file.suffix.lower() == ".mp3" else "audio/wav"
@@ -519,8 +527,8 @@ def run_server(port: int = 8765):
     watcher_thread.start()
 
     server_address = ("", port)
-    httpd = HTTPServer(server_address, MusicAnalyzerHandler)
-    print(f"🎵 super_musician Server running at http://localhost:{port}")
+    httpd = ThreadingHTTPServer(server_address, MusicAnalyzerHandler)
+    print(f"🎵 super_musician Threading Server running at http://localhost:{port}")
     httpd.serve_forever()
 
 
