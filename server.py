@@ -25,6 +25,7 @@ ANALYSIS_JOBS: dict[str, dict[str, Any]] = {}
 LAST_HEARTBEAT_TIME = time.time()
 SHUTDOWN_TIMEOUT_SECONDS = 8.0
 HEARTBEAT_COUNT = 0
+PITCH_SHIFT_LOCK = threading.Lock()
 
 def _auto_shutdown_watcher():
     global LAST_HEARTBEAT_TIME
@@ -143,10 +144,29 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
             query = parse_qs(urlparse(self.path).query)
             track_type = query.get("track", ["original"])[0]
             folder_name = query.get("folder", ["web_analysis"])[0]
+            try:
+                transpose = int(query.get("transpose", ["0"])[0])
+            except ValueError:
+                transpose = 0
 
             target_file = self._find_audio_file(folder_name, track_type)
 
             if target_file and target_file.exists():
+                if transpose != 0:
+                    cache_file = target_file.parent / f"{target_file.stem}_trans_{transpose}.wav"
+                    if not cache_file.exists():
+                        with PITCH_SHIFT_LOCK:
+                            if not cache_file.exists():
+                                import librosa
+                                import soundfile as sf
+                                print(f"[super_musician] Pitch shifting {target_file.name} by {transpose} semitones...")
+                                start_time = time.time()
+                                y, sr = librosa.load(str(target_file), sr=32000)
+                                y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=transpose)
+                                sf.write(str(cache_file), y_shifted, sr)
+                                print(f"[super_musician] Finished pitch shift in {time.time() - start_time:.2f}s")
+                    target_file = cache_file
+
                 content_type = "audio/mpeg" if target_file.suffix.lower() == ".mp3" else "audio/wav"
                 content = target_file.read_bytes()
                 self.send_response(200)

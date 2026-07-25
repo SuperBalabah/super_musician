@@ -59,10 +59,6 @@ let currentEditMode = "view"; // "view" or "edit"
 let audioElement = null;
 let scrubberElement = null;
 
-// Web Audio API State for pitch shifting
-let audioCtx = null;
-let audioSourceNode = null;
-let jungleNode = null;
 
 function initHeartbeat() {
     function sendHeartbeat() {
@@ -363,10 +359,6 @@ function initAudioPlayer() {
     // Play / Pause Toggle
     if (playBtn) {
         playBtn.addEventListener("click", () => {
-            initAudioContext();
-            if (audioCtx && audioCtx.state === "suspended") {
-                audioCtx.resume();
-            }
             if (audioElement.paused) {
                 audioElement.play().then(() => {
                     setPlayState(true);
@@ -413,25 +405,9 @@ let currentPresetFolder = "web_analysis";
             trackBtns.forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
             currentTrackType = btn.dataset.track;
-
-            const wasPlaying = !audioElement.paused;
-            const savedTime = audioElement.currentTime;
-
-            audioElement.src = `/api/audio?track=${currentTrackType}&folder=${encodeURIComponent(currentPresetFolder || "web_analysis")}`;
-            audioElement.currentTime = savedTime;
             applyAudioPitchShift();
-
-            if (wasPlaying) {
-                initAudioContext();
-                if (audioCtx && audioCtx.state === "suspended") {
-                    audioCtx.resume();
-                }
-                audioElement.play();
-                setPlayState(true);
-            }
         });
     });
-
 
     // Speed Control (1.0x, 0.8x, 0.6x)
     const speedSelect = document.getElementById("speed-select");
@@ -440,28 +416,34 @@ let currentPresetFolder = "web_analysis";
             applyAudioPitchShift();
         });
     }
-}
 
-// --- Initialize Web Audio Context Lazily ---
-function initAudioContext() {
-    if (audioCtx) return;
+    // Show spinner during server-side pitch shifting
+    audioElement.addEventListener("loadstart", () => {
+        const urlParams = new URLSearchParams(audioElement.src.split('?')[1] || '');
+        const transVal = parseInt(urlParams.get("transpose") || "0");
+        if (transVal !== 0) {
+            const statusEl = document.getElementById("yt-status-bar");
+            const statusTextEl = document.getElementById("yt-status-text");
+            if (statusEl && statusTextEl) {
+                statusTextEl.textContent = `正在生成高品質即時變調 (${transVal > 0 ? "+" : ""}${transVal} 半音) 音訊，首次處理約需 3~8 秒，請稍候...`;
+                statusEl.style.display = "flex";
+            }
+        }
+    });
 
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) {
-        console.warn("Web Audio API is not supported in this browser.");
-        return;
-    }
+    audioElement.addEventListener("canplay", () => {
+        const statusEl = document.getElementById("yt-status-bar");
+        if (statusEl) {
+            statusEl.style.display = "none";
+        }
+    });
 
-    try {
-        audioCtx = new AudioContextClass();
-        audioSourceNode = audioCtx.createMediaElementSource(audioElement);
-        jungleNode = new Jungle(audioCtx);
-
-        // Apply pitch shift & routing configuration
-        applyAudioPitchShift();
-    } catch (e) {
-        console.error("Failed to initialize Web Audio pitch shifter:", e);
-    }
+    audioElement.addEventListener("error", () => {
+        const statusEl = document.getElementById("yt-status-bar");
+        if (statusEl) {
+            statusEl.style.display = "none";
+        }
+    });
 }
 
 // --- Apply Real-Time Audio Pitch Shift on Transpose ---
@@ -481,31 +463,37 @@ function applyAudioPitchShift() {
         }
         audioElement.playbackRate = speedRate;
 
-        // 2. Perform high-fidelity pitch shifting using Web Audio API routing
-        if (audioCtx) {
-            if (currentTranspose === 0) {
-                // Bypass pitch shifter entirely when transposition is zero (zero-quality-loss)
-                audioSourceNode.disconnect();
-                audioSourceNode.connect(audioCtx.destination);
-            } else {
-                // Route source through Jungle pitch shifter to change key while maintaining BPM
-                audioSourceNode.disconnect();
-                if (jungleNode) {
-                    audioSourceNode.connect(jungleNode.input);
-                    jungleNode.output.disconnect();
-                    jungleNode.output.connect(audioCtx.destination);
-
-                    const pitchVal = jungleNode.mapPitchFromSemitone(currentTranspose);
-                    jungleNode.setPitchOffset(pitchVal);
-                }
-            }
-
-            if (audioCtx.state === "suspended") {
-                audioCtx.resume();
-            }
-        }
+        // 2. Perform high-fidelity pitch shifting using Server-Side cached DSP
+        updateAudioSource();
     } catch (e) {
         console.warn("Browser audio pitch shift API warning:", e);
+    }
+}
+
+function updateAudioSource() {
+    if (!audioElement) return;
+
+    const wasPlaying = !audioElement.paused;
+    const savedTime = audioElement.currentTime;
+    
+    // Construct the new source URL with transpose
+    const newSrc = `/api/audio?track=${currentTrackType}&folder=${encodeURIComponent(currentPresetFolder || "web_analysis")}&transpose=${currentTranspose}`;
+    
+    // Check if the source is actually different (to avoid unnecessary reloads)
+    const currentUrl = new URL(audioElement.src, window.location.origin);
+    const targetUrl = new URL(newSrc, window.location.origin);
+    
+    if (currentUrl.search !== targetUrl.search || currentUrl.pathname !== targetUrl.pathname) {
+        audioElement.src = newSrc;
+        
+        // Restore time and playback state once metadata is loaded
+        audioElement.addEventListener("loadedmetadata", function onLoaded() {
+            audioElement.currentTime = savedTime;
+            audioElement.removeEventListener("loadedmetadata", onLoaded);
+            if (wasPlaying) {
+                audioElement.play().catch(e => console.warn("Restore playback blocked:", e));
+            }
+        });
     }
 }
 
@@ -919,10 +907,6 @@ function renderGuitarSheet() {
         // Click line to jump audio player position
         lineCard.addEventListener("click", (e) => {
             if (currentEditMode === "view" && audioElement && item.start !== undefined) {
-                initAudioContext();
-                if (audioCtx && audioCtx.state === "suspended") {
-                    audioCtx.resume();
-                }
                 audioElement.currentTime = item.start;
                 audioElement.play();
                 setPlayState(true);
@@ -1349,200 +1333,4 @@ function getEmbeddedFallback() {
     };
 }
 
-// --- Web Audio API Pitch Shifter (Jungle.js implementation) ---
-const JUNGLE_DELAY_TIME = 0.100;
-const JUNGLE_FADE_TIME = 0.050;
-const JUNGLE_BUFFER_TIME = 0.100;
 
-function createFadeBuffer(context, activeTime, fadeTime) {
-    const length1 = activeTime * context.sampleRate;
-    const length2 = (activeTime - 2 * fadeTime) * context.sampleRate;
-    const length = length1 + length2;
-    const buffer = context.createBuffer(1, length, context.sampleRate);
-    const p = buffer.getChannelData(0);
-    
-    const fadeLength = fadeTime * context.sampleRate;
-    const fadeIndex1 = fadeLength;
-    const fadeIndex2 = length1 - fadeLength;
-    
-    for (let i = 0; i < length1; ++i) {
-        let value;
-        if (i < fadeIndex1) {
-            value = Math.sqrt(i / fadeLength);
-        } else if (i >= fadeIndex2) {
-            value = Math.sqrt(1 - (i - fadeIndex2) / fadeLength);
-        } else {
-            value = 1;
-        }
-        p[i] = value;
-    }
-
-    for (let i = length1; i < length; ++i) {
-        p[i] = 0;
-    }
-    
-    return buffer;
-}
-
-function createDelayTimeBuffer(context, activeTime, fadeTime, shiftUp) {
-    const length1 = activeTime * context.sampleRate;
-    const length2 = (activeTime - 2 * fadeTime) * context.sampleRate;
-    const length = length1 + length2;
-    const buffer = context.createBuffer(1, length, context.sampleRate);
-    const p = buffer.getChannelData(0);
-
-    for (let i = 0; i < length1; ++i) {
-        if (shiftUp) {
-            p[i] = (length1 - i) / length;
-        } else {
-            p[i] = i / length1;
-        }
-    }
-
-    for (let i = length1; i < length; ++i) {
-        p[i] = 0;
-    }
-
-    return buffer;
-}
-
-function Jungle(context) {
-    this.context = context;
-    const input = context.createGain();
-    const output = context.createGain();
-    this.input = input;
-    this.output = output;
-    
-    const mod1 = context.createBufferSource();
-    const mod2 = context.createBufferSource();
-    const mod3 = context.createBufferSource();
-    const mod4 = context.createBufferSource();
-    
-    this.shiftDownBuffer = createDelayTimeBuffer(context, JUNGLE_BUFFER_TIME, JUNGLE_FADE_TIME, false);
-    this.shiftUpBuffer = createDelayTimeBuffer(context, JUNGLE_BUFFER_TIME, JUNGLE_FADE_TIME, true);
-    
-    mod1.buffer = this.shiftDownBuffer;
-    mod2.buffer = this.shiftDownBuffer;
-    mod3.buffer = this.shiftUpBuffer;
-    mod4.buffer = this.shiftUpBuffer;
-    
-    mod1.loop = true;
-    mod2.loop = true;
-    mod3.loop = true;
-    mod4.loop = true;
-
-    const mod1Gain = context.createGain();
-    const mod2Gain = context.createGain();
-    const mod3Gain = context.createGain();
-    mod3Gain.gain.value = 0;
-    const mod4Gain = context.createGain();
-    mod4Gain.gain.value = 0;
-
-    mod1.connect(mod1Gain);
-    mod2.connect(mod2Gain);
-    mod3.connect(mod3Gain);
-    mod4.connect(mod4Gain);
-
-    const modGain1 = context.createGain();
-    const modGain2 = context.createGain();
-
-    const delay1 = context.createDelay();
-    const delay2 = context.createDelay();
-    
-    mod1Gain.connect(modGain1);
-    mod2Gain.connect(modGain2);
-    mod3Gain.connect(modGain1);
-    mod4Gain.connect(modGain2);
-    
-    modGain1.connect(delay1.delayTime);
-    modGain2.connect(delay2.delayTime);
-
-    const fade1 = context.createBufferSource();
-    const fade2 = context.createBufferSource();
-    const fadeBuffer = createFadeBuffer(context, JUNGLE_BUFFER_TIME, JUNGLE_FADE_TIME);
-    fade1.buffer = fadeBuffer;
-    fade2.buffer = fadeBuffer;
-    fade1.loop = true;
-    fade2.loop = true;
-
-    const mix1 = context.createGain();
-    const mix2 = context.createGain();
-    mix1.gain.value = 0;
-    mix2.gain.value = 0;
-
-    fade1.connect(mix1.gain);    
-    fade2.connect(mix2.gain);
-        
-    input.connect(delay1);
-    input.connect(delay2);    
-    delay1.connect(mix1);
-    delay2.connect(mix2);
-    mix1.connect(output);
-    mix2.connect(output);
-    
-    const t = context.currentTime + 0.050;
-    const t2 = t + JUNGLE_BUFFER_TIME - JUNGLE_FADE_TIME;
-    mod1.start(t);
-    mod2.start(t2);
-    mod3.start(t);
-    mod4.start(t2);
-    fade1.start(t);
-    fade2.start(t2);
-
-    this.mod1 = mod1;
-    this.mod2 = mod2;
-    this.mod1Gain = mod1Gain;
-    this.mod2Gain = mod2Gain;
-    this.mod3Gain = mod3Gain;
-    this.mod4Gain = mod4Gain;
-    this.modGain1 = modGain1;
-    this.modGain2 = modGain2;
-    this.fade1 = fade1;
-    this.fade2 = fade2;
-    this.mix1 = mix1;
-    this.mix2 = mix2;
-    this.delay1 = delay1;
-    this.delay2 = delay2;
-    
-    this.setDelay(JUNGLE_DELAY_TIME);
-}
-
-Jungle.prototype.setDelay = function(delayTime) {
-    this.modGain1.gain.setTargetAtTime(0.5 * delayTime, 0, 0.010);
-    this.modGain2.gain.setTargetAtTime(0.5 * delayTime, 0, 0.010);
-};
-
-Jungle.prototype.setPitchOffset = function(mult) {
-    if (mult > 0) { // pitch up
-        this.mod1Gain.gain.value = 0;
-        this.mod2Gain.gain.value = 0;
-        this.mod3Gain.gain.value = 1;
-        this.mod4Gain.gain.value = 1;
-    } else { // pitch down
-        this.mod1Gain.gain.value = 1;
-        this.mod2Gain.gain.value = 1;
-        this.mod3Gain.gain.value = 0;
-        this.mod4Gain.gain.value = 0;
-    }
-    this.setDelay(JUNGLE_DELAY_TIME * Math.abs(mult));
-};
-
-Jungle.prototype.mapPitchFromSemitone = function(e) {
-    if (e < 0) return e / 12;
-    switch (e) {
-        case 0: return 0;
-        case 1: return 0.15;
-        case 2: return 0.2396498469723199;
-        case 3: return 0.3392416223392665;
-        case 4: return 0.5240613184290452;
-        case 5: return 0.6938443526464626;
-        case 6: return 0.8531707712586548;
-        case 7: return 1.0062309336345026;
-        case 8: return 1.1572897600301169;
-        case 9: return 1.3572897600301168;
-        case 10: return 1.5356230933634503;
-        case 11: return 1.7056230933634502;
-        case 12: return 2;
-        default: return 0;
-    }
-};
