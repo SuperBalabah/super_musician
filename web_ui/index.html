@@ -242,12 +242,31 @@
                         </div>
                     </label>
                 </div>
+
+                <!-- Transposition selector container (hidden by default) -->
+                <div id="trans-select-container" style="display: none; margin-top: 12px; padding: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin-bottom: 8px;">選擇要保留的變調音檔：</div>
+                    <div id="trans-checkboxes-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <!-- Checkboxes will be dynamically rendered here -->
+                    </div>
+                </div>
             </div>
 
             <footer class="modal-footer">
                 <button class="btn btn-outline" id="btn-cancel-save">取消</button>
                 <button class="btn btn-gold" id="btn-confirm-save">確認儲存</button>
             </footer>
+        </div>
+    </div>
+
+    <!-- Floating Transpose Panel (appears on scroll) -->
+    <div class="floating-transpose-bar" id="floating-transpose-bar">
+        <span class="ctrl-label">🔑 移調</span>
+        <div class="step-group">
+            <button class="btn-step" id="btn-float-inc" title="升調">+</button>
+            <span class="semitone-val" id="float-semitone-display">+0</span>
+            <button class="btn-step" id="btn-float-dec" title="降調">-</button>
+            <button class="btn-step reset" id="reset-float-transpose" title="重設原調">重設</button>
         </div>
     </div>
 

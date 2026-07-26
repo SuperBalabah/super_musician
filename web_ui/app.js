@@ -54,31 +54,16 @@ let isAudioPlaying = false;
 let currentTrackType = "original";
 let currentDisplayMode = "chord"; // "chord" or "jianpu"
 let currentEditMode = "view"; // "view" or "edit"
+let currentPresetFolder = "web_analysis";
 
 // DOM Elements
 let audioElement = null;
 let scrubberElement = null;
 
 
-function initHeartbeat() {
-    function sendHeartbeat() {
-        fetch("/api/heartbeat", { method: "POST" }).catch(() => {});
-    }
-
-    sendHeartbeat();
-    setInterval(sendHeartbeat, 2500);
-
-    window.addEventListener("beforeunload", () => {
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon("/api/heartbeat?action=disconnect");
-        }
-    });
-}
-
 document.addEventListener("DOMContentLoaded", async () => {
     initUI();
     initAudioPlayer();
-    initHeartbeat();
     await loadPresetList();
     renderEmptyState();
 });
@@ -175,6 +160,17 @@ function initUI() {
     if (btnInc) btnInc.addEventListener("click", () => updateTranspose(currentTranspose + 1));
     if (btnReset) btnReset.addEventListener("click", () => updateTranspose(0));
 
+    // Floating Transpose Buttons
+    const btnFloatDec = document.getElementById("btn-float-dec");
+    const btnFloatInc = document.getElementById("btn-float-inc");
+    const btnFloatReset = document.getElementById("reset-float-transpose");
+
+    if (btnFloatDec) btnFloatDec.addEventListener("click", () => updateTranspose(currentTranspose - 1));
+    if (btnFloatInc) btnFloatInc.addEventListener("click", () => updateTranspose(currentTranspose + 1));
+    if (btnFloatReset) btnFloatReset.addEventListener("click", () => updateTranspose(0));
+
+    initFloatingTransposeObserver();
+
     // Song Title Edit Listener
     const songTitleEl = document.getElementById("song-title");
     if (songTitleEl) {
@@ -257,12 +253,21 @@ function initSaveModal() {
             optAudio.classList.remove("active");
             const radio = optSheet.querySelector('input[type="radio"]');
             if (radio) radio.checked = true;
+            
+            const transContainer = document.getElementById("trans-select-container");
+            if (transContainer) transContainer.style.display = "none";
         });
         optAudio.addEventListener("click", () => {
             optAudio.classList.add("active");
             optSheet.classList.remove("active");
             const radio = optAudio.querySelector('input[type="radio"]');
             if (radio) radio.checked = true;
+            
+            const transContainer = document.getElementById("trans-select-container");
+            const transGrid = document.getElementById("trans-checkboxes-grid");
+            if (transContainer && transGrid && transGrid.children.length > 0) {
+                transContainer.style.display = "block";
+            }
         });
     }
 
@@ -276,6 +281,14 @@ function initSaveModal() {
             if (songTitleEl) activeData.title = songTitleEl.textContent.trim();
 
             const saveAudioChoice = document.querySelector('input[name="save-audio-choice"]:checked')?.value === "true";
+            
+            // Collect checked transpositions
+            const keepTranspositions = [];
+            if (saveAudioChoice) {
+                document.querySelectorAll(".trans-choice-cb:checked").forEach(cb => {
+                    keepTranspositions.push(parseInt(cb.value));
+                });
+            }
 
             btnConfirm.disabled = true;
             btnConfirm.textContent = "儲存中...";
@@ -284,7 +297,12 @@ function initSaveModal() {
                 const response = await fetch("/api/save-analysis", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ data: activeData, save_audio: saveAudioChoice })
+                    body: JSON.stringify({ 
+                        data: activeData, 
+                        save_audio: saveAudioChoice,
+                        current_folder: currentPresetFolder,
+                        keep_transpositions: saveAudioChoice ? keepTranspositions : []
+                    })
                 });
 
                 const resData = await response.json();
@@ -297,6 +315,8 @@ function initSaveModal() {
                     }
                     if (!saveAudioChoice && resData.freed_mb !== undefined) {
                         alert(`✅ 吉他譜已成功儲存至曲庫 [${activeData.title}]！已爲您清理釋放 ${resData.freed_mb} MB 本機音檔空間。`);
+                    } else if (resData.freed_mb !== undefined && resData.freed_mb > 0) {
+                        alert(`✅ 吉他譜與所選音檔已儲存至曲庫 [${activeData.title}]！已爲您清理未選取的變調快取，釋放了 ${resData.freed_mb} MB 空間。`);
                     } else {
                         alert(`✅ 吉他譜與完整離線音檔已成功儲存至曲庫 [${activeData.title}]！`);
                     }
@@ -323,6 +343,11 @@ async function handleSaveAnalysis() {
     const modalTitleEl = document.getElementById("modal-song-title");
     const modalSizeEl = document.getElementById("modal-audio-size");
 
+    const transContainer = document.getElementById("trans-select-container");
+    const transGrid = document.getElementById("trans-checkboxes-grid");
+    if (transContainer) transContainer.style.display = "none";
+    if (transGrid) transGrid.innerHTML = "";
+
     if (songTitleEl && modalTitleEl) {
         modalTitleEl.textContent = songTitleEl.textContent.trim();
     }
@@ -333,6 +358,24 @@ async function handleSaveAnalysis() {
             const sizeData = await sizeRes.json();
             if (modalSizeEl && sizeData.total_mb !== undefined) {
                 modalSizeEl.textContent = `${sizeData.total_mb} MB (${sizeData.file_count || 0} 個音軌檔案)`;
+            }
+            
+            const transList = sizeData.transpositions || [];
+            if (transGrid && transContainer && transList.length > 0) {
+                transGrid.innerHTML = transList.map(t => {
+                    const label = t > 0 ? `+${t}` : t;
+                    return `
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer; color: var(--text-muted);">
+                            <input type="checkbox" class="trans-choice-cb" value="${t}" checked style="accent-color: var(--accent-gold);" />
+                            <span>${label} 半音</span>
+                        </label>
+                    `;
+                }).join("");
+                
+                const saveAudioChoice = document.querySelector('input[name="save-audio-choice"]:checked')?.value === "true";
+                if (saveAudioChoice) {
+                    transContainer.style.display = "block";
+                }
             }
         }
     } catch (e) {
@@ -396,7 +439,7 @@ function initAudioPlayer() {
         });
     }
 
-let currentPresetFolder = "web_analysis";
+
 
     // Track Type Switcher (Original / Instrumental / Vocals)
     const trackBtns = document.querySelectorAll(".track-btn");
@@ -616,6 +659,9 @@ function updateTranspose(newTranspose) {
     currentTranspose = Math.max(-6, Math.min(6, newTranspose));
     const display = document.getElementById("semitone-display");
     if (display) display.textContent = (currentTranspose >= 0 ? "+" : "") + currentTranspose;
+
+    const floatDisplay = document.getElementById("float-semitone-display");
+    if (floatDisplay) floatDisplay.textContent = (currentTranspose >= 0 ? "+" : "") + currentTranspose;
 
     // Apply Real-time Pitch Shift to Audio Player!
     applyAudioPitchShift();
@@ -906,7 +952,10 @@ function renderGuitarSheet() {
 
         // Click line to jump audio player position
         lineCard.addEventListener("click", (e) => {
-            if (currentEditMode === "view" && audioElement && item.start !== undefined) {
+            if (e.target.closest("button") || e.target.closest(".chord-name-tag") || e.target.closest(".lyric-text")) {
+                return;
+            }
+            if (audioElement && item.start !== undefined) {
                 audioElement.currentTime = item.start;
                 audioElement.play();
                 setPlayState(true);
@@ -979,7 +1028,7 @@ function highlightCurrentPlayingLine(currentTime) {
     });
 
     if (activeLine && isAudioPlaying) {
-        activeLine.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        activeLine.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 }
 
@@ -1331,6 +1380,27 @@ function getEmbeddedFallback() {
             }
         ]
     };
+}
+
+function initFloatingTransposeObserver() {
+    const originalBar = document.querySelector(".transpose-quick-bar");
+    const floatingBar = document.getElementById("floating-transpose-bar");
+    if (!originalBar || !floatingBar) return;
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                floatingBar.classList.remove("show");
+            } else {
+                floatingBar.classList.add("show");
+            }
+        });
+    }, {
+        threshold: 0,
+        rootMargin: "-80px 0px 0px 0px"
+    });
+
+    observer.observe(originalBar);
 }
 
 

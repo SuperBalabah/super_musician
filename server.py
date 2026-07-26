@@ -22,25 +22,11 @@ import threading
 import time
 
 ANALYSIS_JOBS: dict[str, dict[str, Any]] = {}
-LAST_HEARTBEAT_TIME = time.time()
-SHUTDOWN_TIMEOUT_SECONDS = 8.0
-HEARTBEAT_COUNT = 0
 PITCH_SHIFT_LOCK = threading.Lock()
 
 IS_PROCESSING_PITCH_SHIFT = 0
 
-def _auto_shutdown_watcher():
-    global LAST_HEARTBEAT_TIME
-    time.sleep(12)
-    while True:
-        time.sleep(2)
-        if time.time() - LAST_HEARTBEAT_TIME > SHUTDOWN_TIMEOUT_SECONDS:
-            is_running_job = any(j.get("status") == "running" for j in ANALYSIS_JOBS.values())
-            if is_running_job or IS_PROCESSING_PITCH_SHIFT > 0:
-                LAST_HEARTBEAT_TIME = time.time()
-                continue
-            print("\n[super_musician] 所有瀏覽器頁面已關閉，後端伺服器已自動停止，完全不占用電腦資源。")
-            os._exit(0)
+
 
 def _run_async_analysis(job_id: str, url: str, user_title: str | None):
     try:
@@ -92,8 +78,7 @@ def _run_async_analysis(job_id: str, url: str, user_title: str | None):
         ANALYSIS_JOBS[job_id]["status"] = "error"
         ANALYSIS_JOBS[job_id]["error"] = str(exc)
     finally:
-        global LAST_HEARTBEAT_TIME
-        LAST_HEARTBEAT_TIME = time.time()
+        pass
 
 
 class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
@@ -155,7 +140,7 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
 
             if target_file and target_file.exists():
                 if transpose != 0:
-                    cache_file = target_file.parent / f"{target_file.stem}_trans_{transpose}.wav"
+                    cache_file = target_file.parent / f"{target_file.stem}_trans_{transpose}.mp3"
                     if not cache_file.exists():
                         with PITCH_SHIFT_LOCK:
                             if not cache_file.exists():
@@ -164,13 +149,35 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
                                 try:
                                     import librosa
                                     import soundfile as sf
+                                    import subprocess
+                                    import shutil
                                     print(f"[super_musician] Pitch shifting {target_file.name} by {transpose} semitones...")
                                     start_time = time.time()
                                     # Optimize load sample rate to 22050 for 40% speed up
                                     y, sr = librosa.load(str(target_file), sr=22050)
                                     y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=transpose)
-                                    sf.write(str(cache_file), y_shifted, sr)
-                                    print(f"[super_musician] Finished pitch shift in {time.time() - start_time:.2f}s")
+                                    
+                                    # Write temp WAV file
+                                    temp_wav = target_file.parent / f"{target_file.stem}_trans_{transpose}_temp.wav"
+                                    sf.write(str(temp_wav), y_shifted, sr)
+                                    
+                                    # Convert WAV to MP3 using ffmpeg
+                                    try:
+                                        ffmpeg_cmd = ["ffmpeg", "-y", "-i", str(temp_wav), "-b:a", "128k", str(cache_file)]
+                                        subprocess.run(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                                        if temp_wav.exists():
+                                            temp_wav.unlink()
+                                        # Delete legacy wav if it exists to free space
+                                        legacy_wav = target_file.parent / f"{target_file.stem}_trans_{transpose}.wav"
+                                        if legacy_wav.exists():
+                                            legacy_wav.unlink()
+                                        print(f"[super_musician] Finished pitch shift and compressed to MP3 in {time.time() - start_time:.2f}s")
+                                    except Exception as ffmpeg_err:
+                                        # Fallback to WAV if ffmpeg is missing
+                                        cache_wav = target_file.parent / f"{target_file.stem}_trans_{transpose}.wav"
+                                        shutil.move(str(temp_wav), str(cache_wav))
+                                        cache_file = cache_wav
+                                        print(f"[super_musician] Finished pitch shift (WAV fallback: {ffmpeg_err}) in {time.time() - start_time:.2f}s")
                                 finally:
                                     IS_PROCESSING_PITCH_SHIFT = max(0, IS_PROCESSING_PITCH_SHIFT - 1)
                     target_file = cache_file
@@ -208,29 +215,7 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
                     self._send_json_response(200, {"status": "ok", "job": latest_job})
                 else:
                     self._send_json_response(404, {"status": "error", "error": "No active job found"})
-        elif self.path.startswith("/api/heartbeat"):
-            from urllib.parse import parse_qs, urlparse
-            query = parse_qs(urlparse(self.path).query)
-            action = query.get("action", [None])[0]
 
-            global LAST_HEARTBEAT_TIME, HEARTBEAT_COUNT
-            LAST_HEARTBEAT_TIME = time.time()
-            self._send_json_response(200, {"status": "ok"})
-
-            if action == "disconnect":
-                is_running_job = any(j.get("status") == "running" for j in ANALYSIS_JOBS.values())
-                if is_running_job:
-                    print("\n[super_musician] 偵測到背景任務運行中，取消離線自動關機以維護分析進程。")
-                else:
-                    current_count = HEARTBEAT_COUNT
-                    def _delayed_exit(captured_count):
-                        time.sleep(2.5)
-                        if HEARTBEAT_COUNT == captured_count and not any(j.get("status") == "running" for j in ANALYSIS_JOBS.values()):
-                            print("\n[super_musician] 收到關閉視窗離線信號，未偵測到新連線，後端伺服器立即關機並釋放資源。")
-                            os._exit(0)
-                    threading.Thread(target=_delayed_exit, args=(current_count,), daemon=True).start()
-            else:
-                HEARTBEAT_COUNT += 1
         elif self.path == "/api/latest-analysis":
             analysis_file = RUNS_DIR / "web_analysis" / "analysis.json"
             if analysis_file.exists():
@@ -242,30 +227,7 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
-        if self.path.startswith("/api/heartbeat"):
-            from urllib.parse import parse_qs, urlparse
-            query = parse_qs(urlparse(self.path).query)
-            action = query.get("action", [None])[0]
-
-            global LAST_HEARTBEAT_TIME, HEARTBEAT_COUNT
-            LAST_HEARTBEAT_TIME = time.time()
-            self._send_json_response(200, {"status": "ok"})
-
-            if action == "disconnect":
-                is_running_job = any(j.get("status") == "running" for j in ANALYSIS_JOBS.values())
-                if is_running_job:
-                    print("\n[super_musician] 偵測到背景任務運行中，取消離線自動關機以維護分析進程。")
-                else:
-                    current_count = HEARTBEAT_COUNT
-                    def _delayed_exit(captured_count):
-                        time.sleep(2.5)
-                        if HEARTBEAT_COUNT == captured_count and not any(j.get("status") == "running" for j in ANALYSIS_JOBS.values()):
-                            print("\n[super_musician] 收到關閉視窗離線信號，未偵測到新連線，後端伺服器立即關機並釋放資源。")
-                            os._exit(0)
-                    threading.Thread(target=_delayed_exit, args=(current_count,), daemon=True).start()
-            else:
-                HEARTBEAT_COUNT += 1
-        elif self.path == "/api/analyze-url":
+        if self.path == "/api/analyze-url":
             self._handle_analyze_url()
         elif self.path == "/api/save-analysis":
             self._handle_save_analysis()
@@ -339,14 +301,23 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
 
     def _handle_get_audio_size(self, folder_name: str = "web_analysis"):
         try:
+            import re
             audio_files = self._get_associated_audio_files(folder_name)
             total_bytes = sum(f.stat().st_size for f in audio_files if f.exists())
             total_mb = round(total_bytes / (1024 * 1024), 2)
+            
+            transposes = set()
+            for f in audio_files:
+                match = re.search(r'_trans_(-?\d+)\.(mp3|wav)', f.name)
+                if match:
+                    transposes.add(int(match.group(1)))
+                    
             self._send_json_response(200, {
                 "status": "ok",
                 "total_bytes": total_bytes,
                 "total_mb": total_mb,
-                "file_count": len(audio_files)
+                "file_count": len(audio_files),
+                "transpositions": sorted(list(transposes))
             })
         except Exception as exc:
             self._send_json_response(500, {"status": "error", "error": str(exc)})
@@ -463,9 +434,12 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
         content_len = int(self.headers.get("Content-Length", 0))
         post_data = self.rfile.read(content_len)
         try:
+            import re
             payload = json.loads(post_data.decode("utf-8"))
             data = payload.get("data")
             save_audio = payload.get("save_audio", True)
+            current_folder = payload.get("current_folder", "web_analysis")
+            keep_transpositions = payload.get("keep_transpositions", None)
             if not data:
                 self._send_json_response(400, {"status": "error", "error": "Missing data payload"})
                 return
@@ -476,17 +450,18 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
             save_dir = RUNS_DIR / "saved_songs" / folder_name
             save_dir.mkdir(parents=True, exist_ok=True)
 
-            # Copy active audio files from web_analysis if save_dir is new
-            active_dir = RUNS_DIR / "web_analysis"
-            if active_dir.exists() and active_dir.resolve() != save_dir.resolve():
-                for f in active_dir.glob("**/*"):
-                    if f.is_file():
-                        rel = f.relative_to(active_dir)
-                        dst = save_dir / rel
-                        dst.parent.mkdir(parents=True, exist_ok=True)
-                        if not dst.exists() or f.stat().st_mtime > dst.stat().st_mtime:
-                            import shutil
-                            shutil.copy2(f, dst)
+            # Copy active audio files from web_analysis if we are saving from web_analysis
+            if current_folder == "web_analysis":
+                active_dir = RUNS_DIR / "web_analysis"
+                if active_dir.exists() and active_dir.resolve() != save_dir.resolve():
+                    for f in active_dir.glob("**/*"):
+                        if f.is_file():
+                            rel = f.relative_to(active_dir)
+                            dst = save_dir / rel
+                            dst.parent.mkdir(parents=True, exist_ok=True)
+                            if not dst.exists() or f.stat().st_mtime > dst.stat().st_mtime:
+                                import shutil
+                                shutil.copy2(f, dst)
 
             analysis_file = save_dir / "analysis.json"
             analysis_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -502,7 +477,21 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
                             f.unlink()
                         except Exception as e:
                             print(f"[super_musician] Warning: could not delete {f}: {e}")
-
+            else:
+                # If they chose to keep audio, clean up the ones they didn't check
+                if keep_transpositions is not None:
+                    keep_set = set(int(t) for t in keep_transpositions)
+                    audio_files = self._get_associated_audio_files(f"saved_songs/{folder_name}")
+                    for f in audio_files:
+                        match = re.search(r'_trans_(-?\d+)\.(mp3|wav)', f.name)
+                        if match:
+                            t_val = int(match.group(1))
+                            if t_val not in keep_set:
+                                freed_bytes += f.stat().st_size
+                                try:
+                                    f.unlink()
+                                except Exception as e:
+                                    print(f"[super_musician] Warning: could not delete {f}: {e}")
 
             freed_mb = round(freed_bytes / (1024 * 1024), 2)
             self._send_json_response(200, {
@@ -516,6 +505,22 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
             self._send_json_response(500, {"status": "error", "error": str(exc)})
 
 
+def _clean_legacy_wav_caches():
+    print("[super_musician] 正在掃描並清理舊版大體積 WAV 變調快取檔案...")
+    freed_bytes = 0
+    count = 0
+    if RUNS_DIR.exists():
+        for f in RUNS_DIR.glob("**/*_trans_*.wav"):
+            if f.is_file():
+                freed_bytes += f.stat().st_size
+                try:
+                    f.unlink()
+                    count += 1
+                except Exception as e:
+                    print(f"Warning: could not delete {f}: {e}")
+    if count > 0:
+        print(f"[super_musician] 已成功清理 {count} 個舊版 WAV 變調快取，釋放了 {freed_bytes / (1024 * 1024):.2f} MB 空間！")
+
 def run_server(port: int = 8765):
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -523,8 +528,7 @@ def run_server(port: int = 8765):
         except Exception:
             pass
 
-    watcher_thread = threading.Thread(target=_auto_shutdown_watcher, daemon=True)
-    watcher_thread.start()
+    _clean_legacy_wav_caches()
 
     server_address = ("", port)
     httpd = ThreadingHTTPServer(server_address, MusicAnalyzerHandler)

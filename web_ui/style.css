@@ -318,7 +318,7 @@ body.edit-mode .btn-add-measure {
     margin: 24px auto;
     padding: 0 24px;
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr 420px;
     gap: 24px;
 }
 
@@ -638,7 +638,7 @@ body.edit-mode .btn-add-measure {
 
 .chord-diagrams-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
     max-height: calc(100vh - 220px);
     overflow-y: auto;
@@ -964,6 +964,64 @@ body.edit-mode .btn-add-measure {
     padding: 16px 24px;
     border-top: 1px solid var(--border-subtle);
     background: rgba(255, 255, 255, 0.02);
+}
+
+/* Floating Transpose Bar on the left */
+.floating-transpose-bar {
+    position: fixed;
+    left: 24px;
+    top: 50%;
+    transform: translateY(-50%) translateX(-20px);
+    background: var(--bg-card);
+    border: 1px solid var(--border-gold);
+    border-radius: var(--radius-lg);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    z-index: 250;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.floating-transpose-bar.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) translateX(0);
+}
+
+.floating-transpose-bar .ctrl-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.floating-transpose-bar .step-group {
+    flex-direction: column;
+    gap: 8px;
+}
+
+.floating-transpose-bar .btn-step {
+    width: 32px;
+    height: 32px;
+}
+
+.floating-transpose-bar .btn-step.reset {
+    width: auto;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    margin-top: 4px;
+}
+
+.floating-transpose-bar .semitone-val {
+    font-size: 1.1rem;
+    min-width: unset;
 }
 
 
