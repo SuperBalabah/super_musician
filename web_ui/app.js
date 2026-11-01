@@ -208,6 +208,12 @@ function initUI() {
 
     initFloatingTransposeObserver();
 
+    // Show Web Preview notice only on static deployment (GitHub Pages)
+    const demoBanner = document.getElementById("demo-notice-banner");
+    if (demoBanner) {
+        demoBanner.style.display = isStaticHost() ? "flex" : "none";
+    }
+
     if (isStaticHost()) {
         const transHint = document.getElementById("trans-demo-hint");
         if (transHint) transHint.style.display = "block";
