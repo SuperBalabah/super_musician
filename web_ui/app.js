@@ -208,6 +208,11 @@ function initUI() {
 
     initFloatingTransposeObserver();
 
+    if (isStaticHost()) {
+        const transHint = document.getElementById("trans-demo-hint");
+        if (transHint) transHint.style.display = "block";
+    }
+
     // Song Title Edit Listener
     const songTitleEl = document.getElementById("song-title");
     if (songTitleEl) {
@@ -434,7 +439,13 @@ function isStaticHost() {
 
 function resolveAudioUrl(trackType = "original", folder = "web_analysis", transpose = 0) {
     if (isStaticHost()) {
-        return "demo_audio.mp3";
+        if (trackType === "vocals") {
+            return "demo_vocals.mp3";
+        } else if (trackType === "instrumental") {
+            return "demo_backing.mp3";
+        } else {
+            return "demo_audio.mp3";
+        }
     }
     return `/api/audio?track=${trackType}&folder=${encodeURIComponent(folder || "web_analysis")}&transpose=${transpose}`;
 }
@@ -574,8 +585,19 @@ function updateAudioSource() {
     if (!audioElement) return;
 
     if (isStaticHost()) {
-        if (!audioElement.src.includes("demo_audio.mp3")) {
-            audioElement.src = "demo_audio.mp3";
+        const expectedStem = resolveAudioUrl(currentTrackType);
+        const currentSrc = audioElement.getAttribute("src") || audioElement.src || "";
+        if (!currentSrc.includes(expectedStem)) {
+            const wasPlaying = !audioElement.paused;
+            const savedTime = audioElement.currentTime;
+            audioElement.src = expectedStem;
+            audioElement.addEventListener("loadedmetadata", function onLoaded() {
+                audioElement.currentTime = savedTime;
+                audioElement.removeEventListener("loadedmetadata", onLoaded);
+                if (wasPlaying) {
+                    audioElement.play().catch(e => console.warn("Restore playback blocked:", e));
+                }
+            });
         }
         return;
     }
@@ -718,8 +740,34 @@ function getEffectiveAlignedLyrics(data) {
 }
 
 
+function showToast(message, duration = 4000) {
+    let container = document.getElementById("studio-toast-container");
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "studio-toast-container";
+        container.style.cssText = "position: fixed; top: 90px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none;";
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement("div");
+    toast.className = "studio-toast";
+    toast.style.cssText = "background: rgba(18, 20, 26, 0.95); color: #deb070; border: 1px solid rgba(212, 175, 55, 0.4); border-radius: 8px; padding: 10px 20px; font-size: 0.9rem; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.6); backdrop-filter: blur(12px); pointer-events: auto; max-width: 90vw; text-align: center;";
+    toast.textContent = message;
+
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transition = "opacity 0.4s ease";
+        setTimeout(() => toast.remove(), 400);
+    }, duration);
+}
+
 // --- Transpose Handler ---
 function updateTranspose(newTranspose) {
+    if (isStaticHost() && newTranspose !== 0 && newTranspose !== currentTranspose) {
+        const toastMsg = window.I18N_ENGINE ? window.I18N_ENGINE.t("demoTransposeNotice") : "線上展示版已即時轉換樂譜！音訊即時變調請下載 Windows 完整版！";
+        showToast(toastMsg, 4000);
+    }
     currentTranspose = Math.max(-6, Math.min(6, newTranspose));
     const display = document.getElementById("semitone-display");
     if (display) display.textContent = (currentTranspose >= 0 ? "+" : "") + currentTranspose;

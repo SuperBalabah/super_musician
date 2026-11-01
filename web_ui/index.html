@@ -14,65 +14,67 @@
         <!-- Header -->
         <header class="studio-header">
             <div class="header-inner">
-                <div class="brand">
-                    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                        <path d="M9 18V5l12-2v13"></path>
-                        <circle cx="6" cy="18" r="3"></circle>
-                        <circle cx="18" cy="16" r="3"></circle>
-                    </svg>
-                    <span class="brand-title">SUPER_<span class="gold-text">MUSICIAN</span></span>
-                </div>
-
-
-                <!-- Compact URL Input -->
-                <div class="url-input-card">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <input type="url" id="yt-url-input" placeholder="貼上 YouTube 網址分析新吉他譜..." />
-                    <button class="btn btn-gold" id="btn-start-analyze">
-                        <span>分析吉他譜</span>
-                    </button>
-                </div>
-
-                <!-- Global Controls -->
-                <div class="global-controls">
-                    <!-- Mode Switchers -->
-                    <div class="mode-switch-group">
-                        <button class="btn btn-outline mode-btn active" id="btn-mode-chord" title="吉他和弦譜模式">🎸 和弦譜</button>
-                        <button class="btn btn-outline mode-btn" id="btn-mode-jianpu" title="數字級數簡譜模式">🎼 級數簡譜</button>
+                <!-- Top Row: Brand & Search -->
+                <div class="header-row header-row-top">
+                    <div class="brand">
+                        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M9 18V5l12-2v13"></path>
+                            <circle cx="6" cy="18" r="3"></circle>
+                            <circle cx="18" cy="16" r="3"></circle>
+                        </svg>
+                        <span class="brand-title">SUPER_<span class="gold-text">MUSICIAN</span></span>
                     </div>
 
-                    <div class="mode-switch-group">
-                        <button class="btn btn-outline edit-btn active" id="btn-mode-view" title="安全瀏覽模式">👁️ 瀏覽</button>
-                        <button class="btn btn-outline edit-btn" id="btn-mode-edit" title="編輯微調模式">✏️ 編輯</button>
+                    <!-- Compact URL Input -->
+                    <div class="url-input-card">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="url" id="yt-url-input" placeholder="貼上 YouTube 網址分析新吉他譜..." />
+                        <button class="btn btn-gold" id="btn-start-analyze">
+                            <span>分析吉他譜</span>
+                        </button>
                     </div>
+                </div>
 
-                    <select id="preset-select" class="luxury-select">
-                        <option value="">📁 選擇歷史樂譜存檔...</option>
-                    </select>
+                <!-- Bottom Row: Studio Mode Controls & Actions -->
+                <div class="header-row header-row-bottom">
+                    <div class="global-controls">
+                        <!-- Mode Switchers -->
+                        <div class="mode-switch-group">
+                            <button class="btn btn-outline mode-btn active" id="btn-mode-chord" title="吉他和弦譜模式">🎸 和弦譜</button>
+                            <button class="btn btn-outline mode-btn" id="btn-mode-jianpu" title="數字級數簡譜模式">🎼 級數簡譜</button>
+                        </div>
 
-                    <button class="btn btn-outline" id="btn-delete-preset" title="刪除選取的已儲存吉他譜檔案" style="display: none; color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3);">
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        <span>刪除樂譜</span>
-                    </button>
+                        <div class="mode-switch-group">
+                            <button class="btn btn-outline edit-btn active" id="btn-mode-view" title="安全瀏覽模式">👁️ 瀏覽</button>
+                            <button class="btn btn-outline edit-btn" id="btn-mode-edit" title="編輯微調模式">✏️ 編輯</button>
+                        </div>
 
+                        <select id="preset-select" class="luxury-select">
+                            <option value="">📁 選擇歷史樂譜存檔...</option>
+                        </select>
 
+                        <button class="btn btn-outline" id="btn-delete-preset" title="刪除選取的已儲存吉他譜檔案" style="display: none; color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3);">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            <span>刪除樂譜</span>
+                        </button>
 
-                    <button class="btn btn-outline" id="btn-save-analysis" title="儲存微調後吉他譜">
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                        <span>儲存</span>
-                    </button>
+                        <button class="btn btn-outline" id="btn-save-analysis" title="儲存微調後吉他譜">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                            <span>儲存</span>
+                        </button>
 
-                    <button class="btn btn-outline" id="btn-export-json" title="導出 JSON 數據">
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        <span>導出</span>
-                    </button>
+                        <button class="btn btn-outline" id="btn-export-json" title="導出 JSON 數據">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <span>導出</span>
+                        </button>
 
-                    <button class="btn btn-outline lang-btn" id="btn-lang-toggle" title="Switch Language / 切換語言">
-                        <span id="lang-btn-text" class="gold-text">EN</span>
-                    </button>
+                        <button class="btn btn-outline lang-btn" id="btn-lang-toggle" title="切換語言 / Switch Language">
+                            <span id="lang-btn-text" class="gold-text">中</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -119,6 +121,7 @@
                                     <button class="btn-step" id="btn-inc">+</button>
                                     <button class="btn-step reset" id="reset-transpose" title="重設原調">重設</button>
                                 </div>
+                                <div id="trans-demo-hint" class="trans-demo-hint" style="display: none; font-size: 0.78rem; color: var(--accent-gold); opacity: 0.85; margin-top: 4px;">* 線上展示版已同步轉換和弦與指法；音訊即時變調請下載本機版體驗</div>
                             </div>
                             <div class="ctrl-row capo-row">
                                 <span class="ctrl-label">Capo 變調夾：</span>

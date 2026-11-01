@@ -32,6 +32,8 @@ env/
 runs/
 *.mp3
 !web_ui/demo_audio.mp3
+!web_ui/demo_vocals.mp3
+!web_ui/demo_backing.mp3
 *.wav
 *.flac
 *.m4a

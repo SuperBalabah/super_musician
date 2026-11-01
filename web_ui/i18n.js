@@ -19,7 +19,9 @@ const I18N = {
         btnDeletePreset: "刪除樂譜",
         btnSave: "儲存",
         btnExport: "導出",
-        demoNotice: "<strong>線上展示模式：</strong>支援即時音訊播放、動態和弦指法、簡譜級數切換與即時變調。若需分析新的 YouTube 歌曲並進行 AI 深度人聲/伴奏音軌分離，請下載 Windows 完整桌面版。",
+        demoNotice: "<strong>線上展示模式：</strong>支援 Adele《Hello》原曲、純伴奏與純人聲三軌完整切換、即時和弦指法與簡譜轉換。若需分析新的 YouTube 歌曲或進行即時音訊 DSP 變調，請下載 Windows 完整桌面版。",
+        demoTransposeNotice: "💡 線上展示版已即時轉換樂譜與和弦指法！音訊即時變調 (-6 至 +6 半音) 需搭配 Python 本機 DSP 運算，請下載 Windows 完整版體驗！",
+        transDemoHint: "* 線上展示版已同步轉換樂譜；音訊即時變調請下載本機版體驗",
         downloadDesktopLink: "下載 Windows 完整版 →",
         origKey: "原調",
         currKey: "目前調性",
@@ -77,7 +79,9 @@ const I18N = {
         btnDeletePreset: "Delete Song",
         btnSave: "Save",
         btnExport: "Export",
-        demoNotice: "<strong>Web Preview Mode:</strong> Interactive audio, synchronized chord fingering, Jianpu degree mode, and pitch transposition are active. To analyze new YouTube URLs with deep AI stem separation, please download the Windows desktop app.",
+        demoNotice: "<strong>Web Preview Mode:</strong> Adele - Hello includes full audio stems (Original, Backing, Vocals), interactive chord fingering, and scale degrees. Real-time audio pitch shifting and analyzing new YouTube URLs require the Windows desktop app.",
+        demoTransposeNotice: "💡 Web preview transposes chord sheet & fingering visually! Real-time audio pitch shifting (-6 to +6) requires local Python DSP engine. Download the Windows App for full experience!",
+        transDemoHint: "* Web preview transposes chords visually; audio pitch shifting requires desktop app",
         downloadDesktopLink: "Download Windows App →",
         origKey: "Original Key",
         currKey: "Current Key",
@@ -333,7 +337,11 @@ function applyTranslations() {
     const strummingEl = document.getElementById("strumming-pattern");
     if (strummingEl) strummingEl.textContent = dict.strummingPatternVal;
 
-    // Language Toggle Button UI (Single label at a time!)
+    // Transpose demo hint
+    const transDemoHintEl = document.getElementById("trans-demo-hint");
+    if (transDemoHintEl) transDemoHintEl.textContent = dict.transDemoHint;
+
+    // Language Toggle Button UI (Shows CURRENT language: EN or 中)
     updateLanguageToggleBtn();
 }
 
@@ -341,11 +349,11 @@ function updateLanguageToggleBtn() {
     const btnToggle = document.getElementById("btn-lang-toggle");
     if (btnToggle) {
         if (currentLang === "en") {
-            btnToggle.innerHTML = '<span class="gold-text" style="font-weight:700;">中文</span>';
-            btnToggle.title = "切換至繁體中文 (Switch to Chinese)";
-        } else {
             btnToggle.innerHTML = '<span class="gold-text" style="font-weight:700;">EN</span>';
-            btnToggle.title = "Switch to English (切換至英文)";
+            btnToggle.title = "點擊切換為繁體中文 (Click to switch to Chinese)";
+        } else {
+            btnToggle.innerHTML = '<span class="gold-text" style="font-weight:700;">中</span>';
+            btnToggle.title = "Click to switch to English (切換至英文)";
         }
     }
 }

@@ -58,10 +58,23 @@ body.quiet-luxury {
     max-width: 1400px;
     margin: 0 auto;
     display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.header-row {
+    width: 100%;
+    display: flex;
     align-items: center;
+}
+
+.header-row-top {
     justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.header-row-bottom {
+    justify-content: flex-start;
 }
 
 .brand {
@@ -86,7 +99,7 @@ body.quiet-luxury {
 
 /* Compact URL Input Bar */
 .url-input-card {
-    flex: 1 1 300px;
+    flex: 0 1 540px;
     min-width: 280px;
     max-width: 540px;
     display: flex;
@@ -96,6 +109,7 @@ body.quiet-luxury {
     border-radius: var(--radius-md);
     padding: 4px 6px 4px 14px;
     transition: all 0.2s ease;
+    margin-left: auto;
 }
 
 .url-input-card:focus-within {
@@ -122,14 +136,19 @@ body.quiet-luxury {
     font-size: 0.9rem;
 }
 
-@media (max-width: 1180px) {
-    .header-inner {
-        gap: 12px;
+@media (max-width: 768px) {
+    .header-row-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
     }
     .url-input-card {
-        order: 3;
-        flex: 1 1 100%;
+        width: 100%;
         max-width: 100%;
+        margin-left: 0;
+    }
+    .global-controls {
+        flex-wrap: wrap;
     }
 }
 
