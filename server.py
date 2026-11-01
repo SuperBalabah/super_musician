@@ -527,7 +527,15 @@ def _clean_legacy_wav_caches():
     if count > 0:
         print(f"[super_musician] 已成功清理 {count} 個舊版 WAV 變調快取，釋放了 {freed_bytes / (1024 * 1024):.2f} MB 空間！")
 
-def run_server(port: int = 8765):
+def is_port_in_use(port: int) -> bool:
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.3)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+def run_server(port: int | None = None, auto_open: bool = True):
+    import webbrowser
+
     if hasattr(sys.stdout, "reconfigure"):
         try:
             sys.stdout.reconfigure(encoding="utf-8")
@@ -536,16 +544,58 @@ def run_server(port: int = 8765):
 
     _clean_legacy_wav_caches()
 
-    server_address = ("", port)
-    httpd = ThreadingHTTPServer(server_address, MusicAnalyzerHandler)
-    print(f"🎵 super_musician Threading Server running at http://localhost:{port}")
-    httpd.serve_forever()
+    actual_port = port or 8920
+    httpd = None
+
+    # Robust port binding loop: automatically increment until binding succeeds without conflict
+    for attempt in range(50):
+        current_candidate = actual_port + attempt
+        if is_port_in_use(current_candidate):
+            continue
+        try:
+            server_address = ("", current_candidate)
+            httpd = ThreadingHTTPServer(server_address, MusicAnalyzerHandler)
+            actual_port = current_candidate
+            break
+        except OSError:
+            continue
+
+    if httpd is None:
+        raise RuntimeError("無法在預定範圍內找到可用 Port 啟動伺服器")
+
+    port_file = BASE_DIR / ".server_port"
+    try:
+        port_file.write_text(str(actual_port), encoding="utf-8")
+    except Exception as e:
+        print(f"[super_musician] Warning: could not write .server_port: {e}")
+
+    app_url = f"http://127.0.0.1:{actual_port}"
+    print(f"🎵 Super Musician 伺服器已成功啟動！位址：{app_url}")
+
+    if auto_open:
+        def _open():
+            time.sleep(0.6)
+            try:
+                webbrowser.open(app_url)
+            except Exception as e:
+                print(f"[super_musician] Auto-open browser exception: {e}")
+        threading.Thread(target=_open, daemon=True).start()
+
+    try:
+        httpd.serve_forever()
+    finally:
+        if port_file.exists():
+            try:
+                port_file.unlink()
+            except Exception:
+                pass
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="super_musician Local Server")
-    parser.add_argument("--port", type=int, default=8765, help="Port to bind server")
+    parser.add_argument("--port", type=int, default=8920, help="Port to bind server (default 8920, auto-finds free port if busy)")
+    parser.add_argument("--no-browser", action="store_true", help="Do not open browser automatically")
     args = parser.parse_args()
-    run_server(args.port)
+    run_server(args.port, auto_open=not args.no_browser)
 

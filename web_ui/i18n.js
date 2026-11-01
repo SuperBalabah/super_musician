@@ -317,7 +317,23 @@ function applyTranslations() {
     const btnConfirmSave = document.getElementById("btn-confirm-save");
     if (btnConfirmSave) btnConfirmSave.textContent = dict.btnConfirmSave;
 
-    // Language Toggle Button UI
+    // Footer Sheet Meta Info
+    const lblPitch = document.getElementById("lbl-pitch-range");
+    if (lblPitch) lblPitch.textContent = dict.pitchRange;
+    const lblMedian = document.getElementById("lbl-pitch-median");
+    if (lblMedian) lblMedian.textContent = dict.medianPitch;
+    const lblDuration = document.getElementById("lbl-duration");
+    if (lblDuration) lblDuration.textContent = dict.duration;
+    const lblBeats = document.getElementById("lbl-beats");
+    if (lblBeats) lblBeats.textContent = dict.beats;
+    const lblEnergy = document.getElementById("lbl-energy");
+    if (lblEnergy) lblEnergy.textContent = dict.avgEnergy;
+
+    // Strumming Pattern
+    const strummingEl = document.getElementById("strumming-pattern");
+    if (strummingEl) strummingEl.textContent = dict.strummingPatternVal;
+
+    // Language Toggle Button UI (Single label at a time!)
     updateLanguageToggleBtn();
 }
 
@@ -325,9 +341,11 @@ function updateLanguageToggleBtn() {
     const btnToggle = document.getElementById("btn-lang-toggle");
     if (btnToggle) {
         if (currentLang === "en") {
-            btnToggle.innerHTML = '<span class="gold-text" style="font-weight:700;">EN</span> / <span style="opacity:0.6;">中</span>';
+            btnToggle.innerHTML = '<span class="gold-text" style="font-weight:700;">中文</span>';
+            btnToggle.title = "切換至繁體中文 (Switch to Chinese)";
         } else {
-            btnToggle.innerHTML = '<span style="opacity:0.6;">EN</span> / <span class="gold-text" style="font-weight:700;">中</span>';
+            btnToggle.innerHTML = '<span class="gold-text" style="font-weight:700;">EN</span>';
+            btnToggle.title = "Switch to English (切換至英文)";
         }
     }
 }
@@ -340,3 +358,4 @@ window.I18N_ENGINE = {
     getCurrentLang: () => currentLang,
     updateUI: applyTranslations
 };
+

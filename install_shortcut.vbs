@@ -13,3 +13,4 @@ shortcut.IconLocation = currentDir & "\super_musician.ico,0"
 shortcut.Save
 
 MsgBox "Super Musician 桌面捷徑已成功建立！" & vbCrLf & vbCrLf & "捷徑位置：" & shortcutPath & vbCrLf & "您現在可以直接雙擊桌面圖示啟動。", vbInformation, "Super Musician 安裝成功"
+

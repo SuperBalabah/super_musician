@@ -97,11 +97,11 @@ pip install -r requirements.txt
 # 4. 確認系統已安裝 FFmpeg
 ffmpeg -version
 
-# 5. 啟動本機伺服器
-python server.py --port 8000
+# 5. 啟動本機伺服器 (自動分配無衝突 Port 並開啟瀏覽器)
+python server.py
 ```
 
-開啟瀏覽器前往 `http://localhost:8000` 即可使用。
+伺服器將自動避開衝突 Port 並直接在預設瀏覽器開啟。
 
 ---
 

@@ -71,7 +71,7 @@
                     </button>
 
                     <button class="btn btn-outline lang-btn" id="btn-lang-toggle" title="Switch Language / 切換語言">
-                        <span style="opacity:0.6;">EN</span> / <span class="gold-text" style="font-weight:700;">中</span>
+                        <span id="lang-btn-text" class="gold-text">EN</span>
                     </button>
                 </div>
             </div>
@@ -105,7 +105,7 @@
                                 <span class="meta-badge"><strong class="badge-label">目前調性</strong> <span class="gold-text" id="trans-key">G major</span></span>
                                 <span class="meta-badge"><strong class="badge-label">速度</strong> <span id="song-tempo">70</span> BPM</span>
                                 <span class="meta-badge gold-badge"><strong class="badge-label">Capo 建議</strong> <span id="capo-recommendation">建議 Capo 0 夾 (依 G 大調彈奏)</span></span>
-                                <span class="meta-badge"><strong class="badge-label">參考刷法</strong> <span>X ↑↑X ↑↑</span></span>
+                                <span class="meta-badge"><strong class="badge-label">參考刷法</strong> <span id="strumming-pattern">X ↑↑X ↑↑</span></span>
                             </div>
                         </div>
 
@@ -150,11 +150,11 @@
                     <!-- Clean 1-Line Sheet Footer Info -->
                     <footer class="sheet-footer-info">
 
-                        <span>音域範圍: <strong id="pitch-low">-</strong> ～ <strong id="pitch-high">-</strong> (中音 <span class="gold-text" id="pitch-median">-</span>)</span>
+                        <span><span id="lbl-pitch-range">音域範圍:</span> <strong id="pitch-low">-</strong> ～ <strong id="pitch-high">-</strong> (<span id="lbl-pitch-median">中音</span> <span class="gold-text" id="pitch-median">-</span>)</span>
                         <span class="dot-sep">•</span>
-                        <span>音樂時長: <strong id="song-duration">-</strong> (<span id="song-beats">-</span> 拍)</span>
+                        <span><span id="lbl-duration">音樂時長:</span> <strong id="song-duration">-</strong> (<span id="song-beats">-</span> <span id="lbl-beats">拍</span>)</span>
                         <span class="dot-sep">•</span>
-                        <span>平均 RMS 能量: <strong id="energy-val">-</strong></span>
+                        <span><span id="lbl-energy">平均 RMS 能量:</span> <strong id="energy-val">-</strong></span>
                     </footer>
                 </article>
             </div>

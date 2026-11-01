@@ -16,8 +16,5 @@ if not defined PY_CMD (
     exit /b 1
 )
 
-:: Auto open browser when port 8000 is listening
-start "" /min %PY_CMD% -c "import socket,time,webbrowser;[time.sleep(0.5) for _ in iter(lambda:socket.socket().connect_ex(('127.0.0.1',8000)),0)];webbrowser.open('http://127.0.0.1:8000')"
-
-:: Launch Super Musician HTTP Server
-%PY_CMD% server.py --port 8000
+:: Launch Super Musician Server (automatically allocates a free port and opens default browser)
+%PY_CMD% server.py

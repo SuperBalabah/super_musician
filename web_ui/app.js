@@ -425,6 +425,20 @@ async function handleSaveAnalysis() {
 
 
 
+// --- Helper: Detect Static Deployment (GitHub Pages or Zero-Backend) ---
+function isStaticHost() {
+    return window.location.hostname.includes("github.io") ||
+           window.location.protocol === "file:" ||
+           (!window.location.port && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1");
+}
+
+function resolveAudioUrl(trackType = "original", folder = "web_analysis", transpose = 0) {
+    if (isStaticHost()) {
+        return "demo_audio.mp3";
+    }
+    return `/api/audio?track=${trackType}&folder=${encodeURIComponent(folder || "web_analysis")}&transpose=${transpose}`;
+}
+
 // --- Initialize HTML5 Audio Player ---
 function initAudioPlayer() {
     audioElement = document.getElementById("main-audio-player");
@@ -434,7 +448,7 @@ function initAudioPlayer() {
     if (!audioElement) return;
 
     audioElement.crossOrigin = "anonymous";
-    audioElement.src = "/api/audio?track=original";
+    audioElement.src = resolveAudioUrl("original", currentPresetFolder, currentTranspose);
 
     // Play / Pause Toggle
     if (playBtn) {
@@ -518,7 +532,13 @@ function initAudioPlayer() {
         }
     });
 
-    audioElement.addEventListener("error", () => {
+    audioElement.addEventListener("error", (e) => {
+        console.warn("Audio element error. Switching to fallback demo_audio.mp3 if needed.", e);
+        const currentSrc = audioElement.getAttribute("src") || audioElement.src || "";
+        if (!currentSrc.includes("demo_audio.mp3")) {
+            audioElement.src = "demo_audio.mp3";
+            audioElement.load();
+        }
         const statusEl = document.getElementById("yt-status-bar");
         if (statusEl) {
             statusEl.style.display = "none";
@@ -553,11 +573,18 @@ function applyAudioPitchShift() {
 function updateAudioSource() {
     if (!audioElement) return;
 
+    if (isStaticHost()) {
+        if (!audioElement.src.includes("demo_audio.mp3")) {
+            audioElement.src = "demo_audio.mp3";
+        }
+        return;
+    }
+
     const wasPlaying = !audioElement.paused;
     const savedTime = audioElement.currentTime;
     
     // Construct the new source URL with transpose
-    const newSrc = `/api/audio?track=${currentTrackType}&folder=${encodeURIComponent(currentPresetFolder || "web_analysis")}&transpose=${currentTranspose}`;
+    const newSrc = resolveAudioUrl(currentTrackType, currentPresetFolder || "web_analysis", currentTranspose);
     
     // Check if the source is actually different (to avoid unnecessary reloads)
     const currentUrl = new URL(audioElement.src, window.location.origin);
@@ -648,7 +675,7 @@ async function loadLatestAnalysis(presetFolder = null) {
     }
 
     if (audioElement) {
-        audioElement.src = `/api/audio?track=${currentTrackType}&folder=${encodeURIComponent(currentPresetFolder)}`;
+        audioElement.src = resolveAudioUrl(currentTrackType, currentPresetFolder, currentTranspose);
     }
 
     currentTranspose = 0;
@@ -1395,23 +1422,20 @@ function formatDuration(seconds) {
 function getEmbeddedFallback() {
     return {
         "title": "Adele - Hello (Lyrics)",
-        "duration_seconds": 289.88,
+        "duration_seconds": 289.8,
         "tempo_bpm": 79.0,
+        "beat_count": 381,
         "estimated_key": {
                 "name": "Ab major",
                 "confidence": 0.92
         },
         "pitch_range": {
-                "low": "D♯3",
-                "high": "A♯5",
-                "median": "E4",
-                "voiced_ratio": 0.9471492632927611,
-                "mean_confidence": 0.37693979067306543
+                "low": "F3",
+                "high": "Ab5",
+                "median": "C4"
         },
         "energy": {
-                "mean": 0.11806460469961166,
-                "p25": 0.03680085763335228,
-                "p75": 0.1782558113336563
+                "mean": 0.082
         },
         "likely_progression": [
                 "Fm",
@@ -1663,7 +1687,7 @@ function getEmbeddedFallback() {
                 {
                         "start": 53.53,
                         "end": 66.8,
-                        "text": "There's such a difference between us, and a million miles",
+                        "text": "There's such a difference between us, and a million miles...",
                         "chords": [
                                 {
                                         "chord": "Fm",
@@ -1898,8 +1922,716 @@ function getEmbeddedFallback() {
                 },
                 {
                         "start": 105.0,
-                        "end": 127.63,
+                        "end": 117.0,
                         "text": "To tell you I'm sorry for breaking your heart, but it don't matter, it clearly doesn't tear you apart anymore",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.96
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.9
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.89
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.84
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 117.0,
+                        "end": 133.0,
+                        "text": "Hello, how are you? It's so typical of me to talk about myself, I'm sorry",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.93
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.85
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.82
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.92
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.86
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 133.0,
+                        "end": 146.28,
+                        "text": "I hope that you're well. Did you ever make it out of that town where nothing ever happened?",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.93
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.85
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.82
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.92
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.86
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 146.28,
+                        "end": 165.36,
+                        "text": "It's no secret that the both of us are running out of time...",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.85
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.92
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.83
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.93
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.87
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.91
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.82
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 165.36,
+                        "end": 175.92,
+                        "text": "So hello from the other side! I must've called a thousand times",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.96
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.9
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.89
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.84
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 175.92,
+                        "end": 191.2,
+                        "text": "To tell you I'm sorry for everything that I've done, but when I call you never seem to be home",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.96
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.9
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.89
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.84
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 191.2,
+                        "end": 204.12,
+                        "text": "Hello from the outside! At least I can say that I've tried",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.96
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.9
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.89
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.84
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 204.12,
+                        "end": 218.0,
+                        "text": "To tell you I'm sorry for breaking your heart, but it don't matter, it clearly doesn't tear you apart anymore",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.96
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.9
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.89
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.84
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 218.0,
+                        "end": 230.72,
+                        "text": "Ooh, anymore... Ooh, anymore... Ooh, anymore... Anymore...",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.87
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.93
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.82
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 230.72,
+                        "end": 246.44,
+                        "text": "Hello from the other side! I must've called a thousand times",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.96
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.9
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.89
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.84
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 246.44,
+                        "end": 261.0,
+                        "text": "To tell you I'm sorry for everything that I've done, but when I call you never seem to be home",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.96
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.9
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.89
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.84
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 261.0,
+                        "end": 273.48,
+                        "text": "Hello from the outside! At least I can say that I've tried",
+                        "chords": [
+                                {
+                                        "chord": "Fm",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Fm",
+                                                        "score": 0.96
+                                                },
+                                                {
+                                                        "chord": "Fm7",
+                                                        "score": 0.9
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "C#",
+                                        "candidates": [
+                                                {
+                                                        "chord": "C#",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "C#maj7",
+                                                        "score": 0.88
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Ab",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Ab",
+                                                        "score": 0.94
+                                                },
+                                                {
+                                                        "chord": "Abmaj7",
+                                                        "score": 0.89
+                                                }
+                                        ]
+                                },
+                                {
+                                        "chord": "Eb",
+                                        "candidates": [
+                                                {
+                                                        "chord": "Eb",
+                                                        "score": 0.95
+                                                },
+                                                {
+                                                        "chord": "Eb7",
+                                                        "score": 0.84
+                                                }
+                                        ]
+                                }
+                        ]
+                },
+                {
+                        "start": 273.48,
+                        "end": 289.8,
+                        "text": "To tell you I'm sorry for breaking your heart, but it don't matter, it clearly doesn't tear you apart anymore.",
                         "chords": [
                                 {
                                         "chord": "Fm",

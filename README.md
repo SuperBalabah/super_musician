@@ -97,11 +97,11 @@ pip install -r requirements.txt
 # 4. Verify FFmpeg installation
 ffmpeg -version
 
-# 5. Launch the local server
-python server.py --port 8000
+# 5. Launch the local server (auto-allocates free port & opens browser)
+python server.py
 ```
 
-Navigate to `http://localhost:8000` in any modern web browser.
+The application will automatically find an available port and open in your default browser.
 
 ---
 

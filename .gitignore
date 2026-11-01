@@ -31,8 +31,10 @@ env/
 # Project specific caches and runs
 runs/
 *.mp3
+!web_ui/demo_audio.mp3
 *.wav
 *.flac
 *.m4a
 *.zip
 *.tar.gz
+.server_port
