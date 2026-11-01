@@ -1,4 +1,14 @@
+# Core Web UI & Audio Analysis
+numpy>=1.24.0
+scipy>=1.10.0
+soundfile>=0.12.1
 librosa>=0.10.2
-numpy>=1.24
-soundfile>=0.12
-scipy>=1.10
+
+# YouTube Audio Extraction
+yt-dlp>=2024.0.0
+
+# Desktop AI Audio Features (Demucs Stem Separation & Whisper Transcription)
+demucs>=4.0.0
+faster-whisper>=1.0.0
+opencc-python-reimplemented>=0.1.7
+torch>=2.0.0

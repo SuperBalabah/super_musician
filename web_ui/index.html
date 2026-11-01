@@ -69,6 +69,10 @@
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                         <span>導出</span>
                     </button>
+
+                    <button class="btn btn-outline lang-btn" id="btn-lang-toggle" title="Switch Language / 切換語言">
+                        <span style="opacity:0.6;">EN</span> / <span class="gold-text" style="font-weight:700;">中</span>
+                    </button>
                 </div>
             </div>
 
@@ -78,6 +82,12 @@
                 <span id="yt-status-text">正在分析音樂、分離音軌與產生吉他譜中...</span>
             </div>
         </header>
+
+        <!-- Live Demo Notice Banner -->
+        <div class="demo-notice-banner" id="demo-notice-banner">
+            <span id="demo-notice-text"><strong>線上展示模式：</strong>支援即時音訊播放、動態和弦指法、簡譜級數切換與即時變調。若需分析新的 YouTube 歌曲並進行 AI 深度人聲/伴奏音軌分離，請下載 Windows 完整桌面版。</span>
+            <a href="https://github.com/SuperBalabah/super_musician/releases" target="_blank" class="notice-link" id="demo-download-link">下載 Windows 完整版 →</a>
+        </div>
 
         <!-- Main Layout Container -->
         <main class="studio-layout">
@@ -270,6 +280,7 @@
         </div>
     </div>
 
+    <script src="i18n.js"></script>
     <script src="app.js"></script>
 </body>
 

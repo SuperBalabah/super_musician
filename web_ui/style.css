@@ -61,12 +61,14 @@ body.quiet-luxury {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+    flex-wrap: wrap;
 }
 
 .brand {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-shrink: 0;
 }
 
 .brand-icon {
@@ -84,7 +86,8 @@ body.quiet-luxury {
 
 /* Compact URL Input Bar */
 .url-input-card {
-    flex: 1;
+    flex: 1 1 300px;
+    min-width: 280px;
     max-width: 540px;
     display: flex;
     align-items: center;
@@ -110,11 +113,24 @@ body.quiet-luxury {
 
 .url-input-card input {
     width: 100%;
+    min-width: 120px;
+    flex: 1 1 auto;
     background: transparent;
     border: none;
     outline: none;
     color: var(--text-main);
     font-size: 0.9rem;
+}
+
+@media (max-width: 1180px) {
+    .header-inner {
+        gap: 12px;
+    }
+    .url-input-card {
+        order: 3;
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
 }
 
 /* Buttons */
@@ -131,6 +147,49 @@ body.quiet-luxury {
     transition: all 0.2s ease;
     border: 1px solid transparent;
     white-space: nowrap;
+}
+
+.lang-btn {
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    padding: 6px 12px;
+}
+
+.demo-notice-banner {
+    background: rgba(212, 175, 55, 0.08);
+    border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+    padding: 8px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.4;
+}
+
+.demo-notice-banner strong {
+    color: var(--accent-gold);
+}
+
+.demo-notice-banner .notice-link {
+    color: var(--accent-gold);
+    text-decoration: none;
+    font-weight: 600;
+    margin-left: 6px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.demo-notice-banner .notice-link:hover {
+    background: var(--accent-gold);
+    color: #0c0e12;
 }
 
 .btn-gold {

@@ -216,13 +216,19 @@ class MusicAnalyzerHandler(SimpleHTTPRequestHandler):
                 else:
                     self._send_json_response(404, {"status": "error", "error": "No active job found"})
 
-        elif self.path == "/api/latest-analysis":
-            analysis_file = RUNS_DIR / "web_analysis" / "analysis.json"
-            if analysis_file.exists():
-                data = json.loads(analysis_file.read_text(encoding="utf-8"))
-                self._send_json_response(200, {"status": "ok", "data": data})
+        elif self.path.startswith("/api/latest-analysis"):
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            folder_name = params.get("folder", ["web_analysis"])[0]
+            if folder_name and folder_name != "web_analysis":
+                self._handle_get_preset()
             else:
-                self._send_json_response(404, {"status": "error", "error": "No analysis file found yet"})
+                analysis_file = RUNS_DIR / "web_analysis" / "analysis.json"
+                if analysis_file.exists():
+                    data = json.loads(analysis_file.read_text(encoding="utf-8"))
+                    self._send_json_response(200, {"status": "ok", "data": data})
+                else:
+                    self._send_json_response(404, {"status": "error", "error": "No analysis file found yet"})
         else:
             super().do_GET()
 
